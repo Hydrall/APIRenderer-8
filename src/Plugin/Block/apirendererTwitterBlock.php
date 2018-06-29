@@ -48,7 +48,6 @@ class apirendererTwitterBlock extends BlockBase implements BlockPluginInterface 
                 $extras['favCount'] = $tweet['favorite_count'];
                 $extras['retweetCount'] = $tweet['retweet_count'];
                 $extras['retweetedStatusClass'] = !empty($tweet['retweeted_status'])?'retweeted':'';
-                print_r($extras);
             }
         }
         else {
