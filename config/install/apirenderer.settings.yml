@@ -1,0 +1,22 @@
+apirenderer_proxy: '-1'
+apirenderer_propublica_id: ''
+apirenderer_propublica_key: ''
+apirenderer_propublica_default_results: 5
+apirenderer_eventbrite_key: ''
+apirenderer_eventbrite_noevents: 'Currently there are no planned events for the near future.'
+apirenderer_instagram_gallery_token: ''
+apirenderer_instagram_gallery_short_default_results: 1
+apirenderer_instagram_gallery_short_main_node: ''
+apirenderer_facebook_id: ''
+apirenderer_facebook_token: ''
+apirenderer_facebook_album_short_default_results: 1
+apirenderer_facebook_album_short_main_node: ''
+apirenderer_facebook_feed_short_default_results: 1
+apirenderer_facebook_feed_short_message_length: 140
+apirenderer_facebook_feed_short_main_node: ''
+apirenderer_twitter_consumer_key: ''
+apirenderer_twitter_consumer_key_secret: ''
+apirenderer_twitter_oauth_access_token: ''
+apirenderer_twitter_oauth_access_token_secret: ''
+apirenderer_twitter_user_timeline: ''
+apirenderer_twitter_count: 1

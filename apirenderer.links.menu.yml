@@ -1,0 +1,5 @@
+apirenderer.form:
+  route_name: apirenderer.form
+  title: 'Leidos Website API Renderer'
+  description: 'Configuration for the Leidos Website API Renderer module. Gets API data, stores it server-side, and refreshes it with each Cron run.'
+  parent: system.admin_config_media

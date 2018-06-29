@@ -1,0 +1,1855 @@
+<?php
+/**
+ * @file
+ * A block module that pulls API data and sorts it into tables or otherwise appropriate presentations.
+ */
+
+/**
+ * Implements hook_help().
+ *
+ * Displays help and module information.
+ *
+ * @param path
+ *   Which path of the site we're using to display help
+ * @param arg
+ *   Array that holds the current path as returned from arg() function
+ */
+require_once('includes/TwitterAPIExchange.php');
+function apirenderer_help($path, $arg) {
+	switch($path) {
+		case "admin/help#apirenderer":
+			return t("Allows the implementation of various APIs, which are cached server-side and renewed with each Cron run.");
+			break;
+	}
+}
+
+/**
+ * Implements hook_block_info().
+ */
+/*function apirenderer_block_info() {
+	//Find which blocks are to be used.
+	$eventbrite = \Drupal::state()->get('apirenderer.eventbriteData');
+	$propublicaSp = \Drupal::state()->get('apirenderer.propublicaSpData');
+	$propublicaCo = \Drupal::state()->get('apirenderer.propublicaCoData');
+	$facebookAlbum = \Drupal::state()->get('apirenderer.facebookAlbumData');
+	$facebookFeed = \Drupal::state()->get('apirenderer.facebookFeedData');
+	$instagram = \Drupal::state()->get('apirenderer.instagramData');
+	$twitter = \Drupal::state()->get('apirenderer.twitterData');
+	if ($eventbrite) {
+		$blocks['eventbritesingle'] = array(
+			'info' => t('APIRenderer Eventbrite API - Single Event'),
+			'cache' => DRUPAL_CACHE_PER_ROLE,
+		);
+	}
+	if ($facebookAlbum) {
+		$blocks['facebook_album'] = array(
+			'info' => t('APIRenderer Facebook Graph Album API - All Albums'),
+			'cache' => DRUPAL_CACHE_PER_ROLE,
+		);
+		$blocks['facebook_album_short'] = array(
+			'info' => t('APIRenderer Facebook Graph Album API - Limited Albums and Read More'),
+			'cache' => DRUPAL_CACHE_PER_ROLE,
+		);
+	}
+	if ($facebookFeed) {
+		$blocks['facebook_feed'] = array(
+			'info' => t('APIRenderer Facebook Graph Feed API'),
+			'cache' => DRUPAL_CACHE_PER_ROLE,
+		);
+		$blocks['facebook_feed_short'] = array(
+			'info' => t('APIRenderer Facebook Graph Feed API - Limited Feed and Read More'),
+			'cache' => DRUPAL_CACHE_PER_ROLE,
+		);
+	}
+	if ($instagram) {
+		$blocks['instagram_gallery'] = array(
+			'info' => t('APIRenderer Instagram Gallery API - Full'),
+			'cache' => DRUPAL_CACHE_PER_ROLE,
+		);
+		$blocks['instagram_gallery_short'] = array(
+			'info' => t('APIRenderer Instagram Gallery API - Short'),
+			'cache' => DRUPAL_CACHE_PER_ROLE,
+		);
+	}
+	if ($propublicaSp && $propublicaCo) {
+		$blocks['propublica'] = array(
+			'info' => t('APIRenderer Pro Publica Legislation API'),
+			'cache' => DRUPAL_CACHE_PER_ROLE,
+		);
+	}
+	if ($twitter) {
+		$blocks['twitter_feed'] = array(
+			'info' => t('APIRenderer Twitter Feed - Standard'),
+			'cache' => DRUPAL_CACHE_PER_ROLE,
+		);
+	}
+	$blocks['flickr'] = array(
+		'info' => t('APIRenderer Flickr API'),
+		'cache' => DRUPAL_CACHE_PER_ROLE,
+	);
+	$blocks['flickr_short'] = array(
+		'info' => t('APIRenderer Flickr API - Limited Images and Read More'),
+		'cache' => DRUPAL_CACHE_PER_ROLE,
+	);
+	return $blocks;
+}*/
+
+/**
+ * Implements hook_theme().
+ */
+function apirenderer_theme($existing, $type, $theme, $path) {
+	return array(
+		//Used for: ALL
+		'apirenderer-base-block' => array(
+			'variables' => array(
+				'type' => NULL, //The API used for this block. Values: TWITTER, PROPUBLICA, FACEBOOK-FEED, FACEBOOK-ALBUM, INSTAGRAM, FLICKR, EVENTBRITE, ERROR.
+				'content' => NULL, //The list of posts, bills, or otherwise.
+				'name' => NULL, //Username of social media, if applicable.
+				'url' => NULL, //URL for 'follow' link or otherwise.
+			),
+			'template' => 'apirenderer-base-block',
+		),
+		//Used for: PROPUBLICA
+		'apirenderer-bill-table' => array(
+			'variables' => array(
+				'contentSp' => NULL, //The Sponsored bill votes.
+				'contentCo' => NULL, //The Cosponsored bill votes.
+				'results' => NULL, //Number of results per page, as set in the block configuration.
+			),
+			'template' => 'apirenderer-bill-table',
+		),
+		//Used for: PROPUBLICA
+		'apirenderer-bill' => array(
+			'variables' => array(
+				'url' => NULL, //The bill's URL for its link.
+				'number' => NULL, //The bill's number.
+				'title' => NULL, //The title of hte bill.
+				'date' => NULL, //The date the bill was voted on.
+				'table' => NULL, //Which table the item is in - sponsored, cosponsored, or error.
+				'congress' => NULL, //Which congress this bill was voted on in.
+			),
+			'template' => 'apirenderer-bill',
+		),
+		//Used for: EVENTBRITE
+		'apirenderer-event' => array(
+			'variables' => array(
+				'url' => NULL, //The event's link.
+				'img' => NULL, //The event preview image.
+				'free' => NULL, //Whether or not the event is free.
+				'date' => NULL, //The event's formatted date.
+				'title' => NULL, //The event's title.
+				'location' => NULL //Location of the event.
+			),
+			'template' => 'apirenderer-event',
+		),
+		//Used for: INSTAGRAM, FACEBOOK-ALBUM, FLICKR
+		'apirenderer-image' => array(
+			'variables' => array(
+				'title' => NULL, //Title of the post - used for alt text.
+				'image' => NULL, //The thumbnail image to be displayed.
+				'type' => NULL, //The type of image that this is.
+				'link' => NULL, //The link the image should go to.
+			),
+			'template' => 'apirenderer-image',
+		),
+		//Used for: TWITTER, FACEBOOK-FEED
+		'apirenderer-post' => array(
+			'variables' => array(
+				'type' => NULL, //The type of block this is.
+				'icon' => NULL, //The user's avatar or icon.
+				'name' => NULL, //The user's screen name.
+				'content' => NULL, //The main post content or message.
+				'url' => NULL, //The link to the post's origin.
+				'date' => NULL, //The date of the post.
+				'extras' => array(), //Extra content in an array added onto the post - different for Twitter and Facebook.
+			),
+			'template' => 'apirenderer-post',
+		),
+	);
+}
+
+/**
+ * Implements hook_block_view().
+ *
+ * Prepares the contents of the block.
+ */
+/*function apirenderer_block_view($delta = '') {
+	switch ($delta) {
+		case 'eventbrite':
+			$block['content'] = apirenderer_eventbrite_contents('full');
+			break;
+		case 'eventbritesingle':
+			$block['content'] = apirenderer_eventbrite_contents('short');
+			break;
+		case 'facebook_album':
+			$block['content'] = apirenderer_facebook_contents('full', 'albums');
+			break;
+		case 'facebook_album_short':
+			$results = \Drupal::config('apirenderer.settings')->get("apirenderer_facebook_album_short_default_results");
+			$block['content'] = apirenderer_facebook_contents('short', 'albums', $results);
+			break;
+		case 'facebook_feed':
+			$block['content'] = apirenderer_facebook_contents('full', 'feed');
+			break;
+		case 'facebook_feed_short':
+			$results = \Drupal::config('apirenderer.settings')->get("apirenderer_facebook_feed_short_default_results");
+			$block['content'] = apirenderer_facebook_contents('short', 'feed', $results);
+			break;
+		case 'twitter_feed':
+			$block['content'] = apirenderer_twitter_content();
+			break;
+		case 'flickr':
+			$block['content'] = apirenderer_flickr_contents('full');
+			break;
+		case 'flickr_short':
+			$results = variable_get("apirenderer_flickr_short_default_results", "20");
+			$block['content'] = apirenderer_flickr_contents('short', $results);
+			break;
+		case 'instagram_gallery':
+			$block['content'] = apirenderer_instagram_gallery_contents('full');
+			break;
+		case 'instagram_gallery_short':
+			$results = \Drupal::config('apirenderer.settings')->get("apirenderer_instagram_gallery_short_default_results");
+			$block['content'] = apirenderer_instagram_gallery_contents('short', $results);
+			break;
+		case 'propublica':
+			$results = \Drupal::config('apirenderer.settings')->get("apirenderer_propublica_default_results");
+			$block['content'] = apirenderer_propublica_contents($results);
+			break;
+	}
+	return $block;
+}*/
+
+/**
+ * Cron updating functions (updates with cron run). Essentially causes the database to rebuild the selected APIs every so often.
+ */
+function apirenderer_cron() {
+	$propublicaID = \Drupal::config('apirenderer.settings')->get('apirenderer_propublica_id');
+	$propublicaKey = \Drupal::config('apirenderer.settings')->get('apirenderer_propublica_key');
+	$eventbriteKey = \Drupal::config('apirenderer.settings')->get('apirenderer_eventbrite_key');
+	$eventbriteMessage = \Drupal::config('apirenderer.settings')->get('apirenderer_eventbrite_noevents');
+	$instagramToken = \Drupal::config('apirenderer.settings')->get('apirenderer_instagram_gallery_token');
+	$facebookID = \Drupal::config('apirenderer.settings')->get('apirenderer_facebook_id');
+	$facebookToken = \Drupal::config('apirenderer.settings')->get('apirenderer_facebook_token');
+	$twitter_consumer_key = \Drupal::config('apirenderer.settings')->get('apirenderer_twitter_consumer_key');
+	$twitter_consumer_key_secret = \Drupal::config('apirenderer.settings')->get('apirenderer_twitter_consumer_key_secret');
+	$twitter_oauth_access_token = \Drupal::config('apirenderer.settings')->get('apirenderer_twitter_oauth_access_token');
+	$twitter_oauth_access_token_secret = \Drupal::config('apirenderer.settings')->get('apirenderer_twitter_oauth_access_token_secret');
+	$twitter_user_timeline = \Drupal::config('apirenderer.settings')->get('apirenderer_twitter_user_timeline');
+	$twitter_count = \Drupal::config('apirenderer.settings')->get('apirenderer_twitter_count');
+	//$queue = DrupalQueue::get('apirenderer');
+	//Checks to see what's actually set.
+	if ($propublicaKey && $propublicaID) {
+		$vars['propublicaKey'] = $propublicaKey;
+		$vars['propublicaID'] = $propublicaID;
+	}
+	if ($eventbriteKey && $eventbriteMessage) {
+		$vars['eventbriteKey'] = $eventbriteKey;
+		$vars['eventbriteMessage'] = $eventbriteMessage;
+	}
+	if ($instagramToken) {
+		$vars['instagramToken'] = $instagramToken;
+	}
+	if ($facebookToken && $facebookID) {
+		$vars['facebookToken'] = $facebookToken;
+		$vars['facebookID'] = $facebookID;
+	}
+	if ($twitter_consumer_key && $twitter_consumer_key_secret && $twitter_oauth_access_token && $twitter_oauth_access_token_secret && $twitter_user_timeline && $twitter_count) {
+		$vars['twitter_oauth_access_token'] = $twitter_consumer_key;
+		$vars['twitter_oauth_access_token_secret'] = $twitter_consumer_key_secret;
+		$vars['twitter_consumer_key'] = $twitter_oauth_access_token;
+		$vars['twitter_consumer_key_secret'] = $twitter_oauth_access_token_secret;
+		$vars['twitter_user_timeline'] = $twitter_user_timeline;
+		$vars['twitter_count'] = $twitter_count;
+	}
+	//Passes what is set to the cron queue.
+	//$queue->createItem($vars);
+
+	apirendererRefresh($vars);
+}
+
+//function apirenderer_cron_queue_info() {
+//	//Based on the previous variables set, will call the refresh function.
+//	$queues['apirenderer'] = array (
+//		'worker callback' => 'apirendererRefresh',
+//		'time' => 30, //NOTE: Unsure as to how fast this actually is. Drupal documentation suggest that this may be every thirty seconds.
+//	);
+//	return $queues;
+//}
+
+/************************************
+            CORE FUNCTIONS
+ ************************************/
+
+/**
+ * MAKE REQUEST FUNCTION
+ *
+ * This is the core of this module - it allows you to pass the URL and any relevant headers to a generic CURL call, which returns one of two possibilities: The unparsed JSON String or a curl_error string. Any additions to this module should keep those two possibilites in mind.
+ *
+ * $headers is optional, so it does not need to be defined if it isn't being used.
+ */
+function makeRequest($url, $headers = array()) {
+	$proxy = \Drupal::config('apirenderer.settings')->get('apirenderer_proxy');
+	//Initialize the CURL request.
+	$ch = curl_init();
+	//Set the options via an array. For now, these can be generic to all APIs, but a specialized makeRequest may be needed if we come into contact with a really weird one.
+	$options = array(
+		CURLOPT_URL => $url,
+		CURLOPT_RETURNTRANSFER => true,
+		CURLOPT_HTTPHEADER => $headers,
+		CURLOPT_CONNECTTIMEOUT => 15,
+		CURLOPT_TIMEOUT => 15,
+	);
+	if ($proxy !== '-1') {
+		$options[CURLOPT_PROXY] = $proxy;
+	}
+	curl_setopt_array($ch, $options);
+	//Execute the CURL request.
+	$results = curl_exec($ch);
+	//If the results are a failure, return the error.
+	if ($results === false) {
+		$results = curl_error($ch);
+	}
+	//Close the CURL request and return the results.
+	curl_close($ch);
+	return $results;
+}
+
+/**
+ * TIME ELAPSED FUNCTION
+ *
+ * A custom function that converts a timestamp string into a time ago function.
+ * Courtesy of Glavić on stackoverflow: https://stackoverflow.com/a/18602474
+ *
+ */
+
+function time_elapsed_string($datetime, $full = false) {
+    $now = new DateTime;
+    $ago = new DateTime($datetime);
+    $diff = $now->diff($ago);
+
+    $diff->w = floor($diff->d / 7);
+    $diff->d -= $diff->w * 7;
+
+    $string = array(
+        'y' => 'year',
+        'm' => 'month',
+        'w' => 'week',
+        'd' => 'day',
+        'h' => 'hour',
+        'i' => 'minute',
+        's' => 'second',
+    );
+    foreach ($string as $k => &$v) {
+        if ($diff->$k) {
+            $v = $diff->$k . ' ' . $v . ($diff->$k > 1 ? 's' : '');
+        } else {
+            unset($string[$k]);
+        }
+    }
+
+    if (!$full) $string = array_slice($string, 0, 1);
+    return $string ? implode(', ', $string) . ' ago' : 'just now';
+}
+
+
+
+/**
+ * APIRENDERER REFRESH FUNCTION
+ *
+ * Will refresh all API data in order to have the most up-to-date details of each. $vars is passed to this from hook_cron.
+ *
+ * Returns nothing.
+ */
+function apirendererRefresh($vars) {
+	foreach($vars as $key => $val) {
+		if (($key == 'propublicaKey') && ($val)) {
+			$dataResult = getDataPropublica($vars['propublicaKey'], $vars['propublicaID']);
+			if ($dataResult !== true) {
+				drupal_set_message(t($dataResult), 'warning');
+			}
+		}
+		if (($key == 'eventbriteKey') && ($val)) {
+			$dataResult = getDataEventbrite($vars['eventbriteKey'], $vars['eventbriteMessage']);
+			if ($dataResult !== true) {
+				drupal_set_message(t($dataResult), 'warning');
+			}
+		}
+		if (($key == 'instagramToken') && ($val)) {
+			$dataResult = getDataInstagram($vars['instagramToken']);
+			if ($dataResult !== true) {
+				drupal_set_message(t($dataResult), 'warning');
+			}
+		}
+		if (($key == 'facebookToken') && ($val)) {
+			$error = '';
+			$dataResultAl = getDataFacebook($vars['facebookToken'], $vars['facebookID'], 'albums');
+			if ($dataResultAl !== true) {
+				$error .= $dataResultAl;
+			}
+			$dataResultFe = getDataFacebook($vars['facebookToken'], $vars['facebookID'], 'feed');
+			if ($dataResultFe !== true) {
+				$error .= $dataResultFe;
+			}
+			if ($error != '') {
+				drupal_set_message(t($error), 'warning');
+			}
+		}
+		if (($key == 'twitter_oauth_access_token') && ($val)) {
+			$dataResultTwit = $dataResultTwitter = getDataTwitter($vars['twitter_oauth_access_token'], $vars['twitter_oauth_access_token_secret'], $vars['twitter_consumer_key'], $vars['twitter_consumer_key_secret'], $vars['twitter_user_timeline'], $vars['twitter_count']);
+			if ($dataResultTwit !== true) {
+				drupal_set_message(t("Error: $dataResultTwit"), 'warning');
+			}
+		}
+	}
+}
+
+/************************************
+            EVENTBRITE API
+ ************************************/
+
+/**
+ * GET DATA EVENTBRITE FUNCTION
+ *
+ * Gets the data for eventbrite and sets it into a variable.
+ *
+ * If successful, returns TRUE. Otherwise, returns an error message.
+ */
+function getDataEventbrite($key, $defaultMessage) {
+	//Initial setup.
+	$return = '';
+	$events = array();
+	$error = '';
+	//create the event box.
+	$url = "https://www.eventbriteapi.com/v3/users/me/owned_events/?order_by=start_asc&show_series_parent=on&status=live&token=$key";
+	$result = makeRequest($url);
+	$resultParsed = json_decode($result, true);
+	//Check if the returned value was a JSON string or not; if it wasn't, it is a CURL error.
+	if (json_last_error() != JSON_ERROR_NONE) {
+		$error = "Data failed to decode with the following error: [$result]. There is a problem with the SSL configuration or data source. Please contact your web administrator.";
+	}
+	//Check if there's a status_code, which only appears if the request failed.
+	else if (array_key_exists('status_code', $resultParsed)) {
+		$error = "{$resultParsed['status_code']} {$resultParsed['error']}: {$resultParsed['error_description']}";
+	}
+	//Check if no events were found.
+	else if ($resultParsed['pagination']['object_count'] == '0') {
+		//Error message for no events being found.
+		$events = '<div class="text-center event"><br />' . \Drupal::config('apirenderer.settings')->get('apirenderer_eventbrite_noevents') . '<br /> <br /></div>';
+	}
+	else {
+		//Assuming events were found, get their data and format it.
+		foreach ($resultParsed['events'] as $data) {
+			$url = '';
+			$img = '';
+			$free = '';
+			$date = '';
+			$title = '';
+			$location = '';
+			$url = $data['url'];
+			$img = $data['logo']['url'];
+			if ($data['is_free'] == true) {
+				$free = 'free';
+			}
+			$date = parseEventbriteDate($data['start']['local']);
+			$title = $data['name']['html'];
+			if ($data['venue_id']) {
+				$location = getEventbriteVenue($data['venue_id'], $user);
+			}
+			else {
+				$location = 'Location not set.';
+			}
+			// @FIXME
+// theme() has been renamed to _theme() and should NEVER be called directly.
+// Calling _theme() directly can alter the expected output and potentially
+// introduce security issues (see https://www.drupal.org/node/2195739). You
+// should use renderable arrays instead.
+// 
+// 
+// @see https://www.drupal.org/node/2195739
+// $events[] = theme(
+// 				'apirenderer_eventbrite_event',
+// 				array(
+// 					'url' => $url,
+// 					'img' => $img,
+// 					'free' => $free,
+// 					'date' => $date,
+// 					'title' => $title,
+// 					'location' => $location
+// 				)
+// 			);
+
+		}
+	}
+	//Final theme and return value.
+	if ($error == '') {
+		\Drupal::state()->set('apirenderer.eventbriteData', $events);
+		$return = TRUE;
+	}
+	else {
+		$return = $error;
+	}
+	return $return;
+}
+
+/**
+ * API RENDERER EVENTBRITE CONTENTS FUNCTION
+ *
+ * Generates block contents for the eventbrite API block.
+ *
+ * Returns: The fully themed HTML.
+ */
+function apirenderer_eventbrite_contents($block) {
+	$html = '';
+	$data = \Drupal::state()->get('apirenderer.eventbriteData');
+	if ($data == FALSE) {
+		// @FIXME
+// theme() has been renamed to _theme() and should NEVER be called directly.
+// Calling _theme() directly can alter the expected output and potentially
+// introduce security issues (see https://www.drupal.org/node/2195739). You
+// should use renderable arrays instead.
+// 
+// 
+// @see https://www.drupal.org/node/2195739
+// $html = theme(
+// 			'apirenderer_error',
+// 			array(
+// 				'message' => 'No data was found!'
+// 			)
+// 		);
+
+	}
+	else if ($block == 'full') {
+		$dataFull = '';
+		if (is_array($data)) {
+			foreach ($data as $event) {
+				$dataFull .= $event;
+			}
+		}
+		else {
+			$dataFull .= $data;
+		}
+		// @FIXME
+// theme() has been renamed to _theme() and should NEVER be called directly.
+// Calling _theme() directly can alter the expected output and potentially
+// introduce security issues (see https://www.drupal.org/node/2195739). You
+// should use renderable arrays instead.
+// 
+// 
+// @see https://www.drupal.org/node/2195739
+// $html = theme(
+// 			'apirenderer_eventbrite_eventbox',
+// 			array(
+// 				'contentEvents' => $dataFull
+// 			)
+// 		);
+
+	}
+	else if ($block == 'short') {
+		// @FIXME
+// theme() has been renamed to _theme() and should NEVER be called directly.
+// Calling _theme() directly can alter the expected output and potentially
+// introduce security issues (see https://www.drupal.org/node/2195739). You
+// should use renderable arrays instead.
+// 
+// 
+// @see https://www.drupal.org/node/2195739
+// $html = theme(
+// 			'apirenderer_eventbrite_eventbox',
+// 			array(
+// 				'contentEvents' => $data[0]
+// 			)
+// 		);
+
+	}
+	return $html;
+}
+
+/**
+ * PARSE EVENTBRITE DATE FUNCTION
+ *
+ * Function to turn the eventbrite date string into a useful chunk of data from its relatively useless string value, YYYY-MM-DDTHH:MMSS. Year, Month, Day, Hour, Minute, Second, in that order. The T is always just a T.
+ *
+ * Returns: The formatted and themed HTML for the date.
+ */
+function parseEventbriteDate($date) {
+	$formatted = '';
+	$charDate = str_split($date);
+	$year = ($charDate[0] . $charDate[1] . $charDate[2] . $charDate[3]);
+	$monthNum = ($charDate[5] . $charDate[6]);
+	$month = '';
+	switch ($monthNum) {
+		case "01":
+			$month = "January";
+			break;
+		case "02":
+			$month = "February";
+			break;
+		case "03":
+			$month = "March";
+			break;
+		case "04":
+			$month = "April";
+			break;
+		case "05":
+			$month = "May";
+			break;
+		case "06":
+			$month = "June";
+			break;
+		case "07":
+			$month = "July";
+			break;
+		case "08":
+			$month = "August";
+			break;
+		case "09":
+			$month = "September";
+			break;
+		case "10":
+			$month = "October";
+			break;
+		case "11":
+			$month = "November";
+			break;
+		case "12":
+			$month = "December";
+			break;
+	}
+	if ($charDate[8] == '0') {
+		$day = $charDate[9];
+	}
+	else {
+		$day = ($charDate[8] . $charDate[9]);
+	}
+	if ($charDate[8] == '1') {
+		$day .= 'th';
+	}
+	else {
+		switch ($charDate[9]) {
+			case '1':
+				$day .= 'st';
+				break;
+			case '2':
+				$day .= 'nd';
+				break;
+			case '3':
+				$day .= 'rd';
+				break;
+			default:
+				$day .= 'th';
+		}
+	}
+	$hour = ($charDate[11] . $charDate[12]);
+	if ((int)$hour > 12) {
+		$hour = ((int)$hour - 12);
+		$half = 'PM';
+	}
+	else {
+		if ($charDate[11] == '0') {
+			$hour = $charDate[12];
+		}
+		$half = 'AM';
+	}
+	$minute = ($charDate[14] . $charDate[15]);
+	// @FIXME
+// theme() has been renamed to _theme() and should NEVER be called directly.
+// Calling _theme() directly can alter the expected output and potentially
+// introduce security issues (see https://www.drupal.org/node/2195739). You
+// should use renderable arrays instead.
+// 
+// 
+// @see https://www.drupal.org/node/2195739
+// $formatted = theme(
+// 		'apirenderer_eventbrite_date',
+// 		array(
+// 			'month' => $month,
+// 			'day' => $day,
+// 			'year' => $year,
+// 			'hour' => $hour,
+// 			'minute' => $minute,
+// 			'half' => $half
+// 		)
+// 	);
+
+	return $formatted;
+}
+
+/**
+ * GET EVENTBRITE VENUE FUNCTION
+ *
+ * Function to make another CURL request and try to get the venue's location for each event.
+ *
+ * Returns: The basic data of the location - its name and address.
+ */
+function getEventbriteVenue($id, $key) {
+	$venueUrl = "https://www.eventbriteapi.com/v3/venues/$id/?token=$key";
+	$headers = array();
+	$result = makeRequest($venueUrl, $headers);
+	$resultParsed = json_decode($result, true);
+	if ((json_last_error() == JSON_ERROR_NONE) && (!array_key_exists('status_code', $resultParsed))) {
+		$location = $resultParsed['name'];
+		$location .= '<br />';
+		$location .= $resultParsed['address']['localized_address_display'];
+	}
+	else if (json_last_error() != JSON_ERROR_NONE) {
+		$location = "Data failed to decode with the following error: [$result]. There is a problem with the SSL configuration or data source. Please contact your web administrator.";
+	}
+	else if ($resultParsed['status_code'] == '404') {
+		$location = 'Location not set.';
+	}
+	else if ($resultParsed['status_code'] == '401') {
+		$location = "{$resultParsed['status_code']} {$resultParsed['error']}: {$resultParsed['error_description']}";
+	}
+	else {
+		$location = "{$resultParsed['status_code']} {$resultParsed['error']}: {$resultParsed['error_description']}";
+	}
+	return $location;
+}
+
+/************************************
+         FACEBOOK GRAPH API
+ ************************************/
+
+/**
+ * GET DATA FACEBOOK FUNCTION
+ *
+ * Gets the data for Facebook and sets it into a variable.
+ *
+ * If successful, returns TRUE. Otherwise, returns an error message.
+ */
+function getDataFacebook($token, $id, $endpoint) {
+	//1016110801799039|7fK3_BQ0EAlCTlx64oZrOFC8aso is our usual key.
+	//Initial variable setup.
+	$return = '';
+	$content = '';
+	$error = '';
+	//Make the appropriate requests.
+	if ($endpoint == 'albums') {
+		//Construct the URL.
+		$url = "https://graph.facebook.com/$id/albums?fields=link,count,name,type,picture&access_token=$token";
+		//Make the request.
+		$result = makeRequest($url);
+		$resultParsed = json_decode($result, true);
+		//Work with the data returned.
+		if (json_last_error() != JSON_ERROR_NONE) {
+			$error = "Facebook Albums Data failed to decode with the following error: [$result]. There is a problem with the SSL configuration or data source. Please contact your web administrator.";
+		}
+		else if (array_key_exists('error', $resultParsed)) {
+			$error = "Facebook Albums Error: " . $resultParsed['error']['code'] . $resultParsed['error']['type'] . $resultParsed['error']['message'];
+		}
+		//Return value setting.
+		if ($error == '') {
+			\Drupal::state()->set('apirenderer.facebookAlbumData', $result);
+			$return = TRUE;
+		}
+		else {
+			$return = $error;
+		}
+	}
+	else if ($endpoint == 'feed') {
+		//Construct the URL.
+		$url = "https://graph.facebook.com/$id/posts?fields=from,message,icon,id,permalink_url,picture,type,story,description,source,link,created_time,caption&access_token=$token";
+		//Make the request.
+		$result = makeRequest($url);
+		$resultParsed = json_decode($result, true);
+		//Work with the data returned.
+		if (json_last_error() != JSON_ERROR_NONE) {
+			$error = "Facebook Feed Data failed to decode with the following error: [$result]. There is a problem with the SSL configuration or data source. Please contact your web administrator.";
+		}
+		else if (array_key_exists('error', $resultParsed)) {
+			$error = "Facebook Feed Error" . $resultParsed['error']['code'] . " " . $resultParsed['error']['type'] . ": " . $resultParsed['error']['message'];
+		}
+		//Return value setting.
+		if ($error == '') {
+			\Drupal::state()->set('apirenderer.facebookFeedData', $result);
+			$return = TRUE;
+		}
+		else {
+			$return = $error;
+		}
+	}
+	return $return;
+}
+
+/**
+ * API RENDERER FACEBOOK ALBUM CONTENTS FUNCTION
+ *
+ * Function to create the contents of the Facebook Album Block.
+ *
+ * Returns: The themed block of the gallery.
+ */
+function apirenderer_facebook_contents($block, $endpoint, $results = 1) {
+	$html = '';
+	$content = '';
+	if ($endpoint == 'albums') {
+		$data = \Drupal::state()->get('apirenderer.facebookAlbumData');
+		if ($data == FALSE) {
+			// @FIXME
+// theme() has been renamed to _theme() and should NEVER be called directly.
+// Calling _theme() directly can alter the expected output and potentially
+// introduce security issues (see https://www.drupal.org/node/2195739). You
+// should use renderable arrays instead.
+// 
+// 
+// @see https://www.drupal.org/node/2195739
+// $html = theme(
+// 				'apirenderer_error',
+// 				array(
+// 					'message' => 'No data was found!'
+// 				)
+// 			);
+
+		}
+		else if ($block == 'full') {
+			$parsed = json_decode($data, true);
+			//$display_count = 0;
+			foreach($parsed['data'] as $album) {
+				$albumid = \Drupal\Component\Utility\Html::escape($album["id"]);
+				$count = \Drupal\Component\Utility\Html::escape($album["count"]);
+				$title = \Drupal\Component\Utility\Html::escape($album["name"]) . " ($count)";
+				$cover = \Drupal\Component\Utility\Html::escape($album["picture"]["data"]["url"]);
+				$link = $album["link"];
+				// @FIXME
+// theme() has been renamed to _theme() and should NEVER be called directly.
+// Calling _theme() directly can alter the expected output and potentially
+// introduce security issues (see https://www.drupal.org/node/2195739). You
+// should use renderable arrays instead.
+// 
+// 
+// @see https://www.drupal.org/node/2195739
+// $content .= theme(
+// 					'photo_gallery_item',
+// 					array(
+// 						'title' => $title,
+// 						'albumid' => $albumid,
+// 						'image' => $cover,
+// 						'colorbox' => "",
+// 						'target' => "_blank",
+// 						'type' => "facebook",
+// 						'summary' => "",
+// 						'flickrembed' => "",
+// 						'link' => $link,
+// 					)
+// 				);
+
+				//if (($display_count+1) % 3 == 0) {
+				//	$content .= '<div class="clear"></div>';
+				//}
+				//$display_count++;
+			}
+			// @FIXME
+// theme() has been renamed to _theme() and should NEVER be called directly.
+// Calling _theme() directly can alter the expected output and potentially
+// introduce security issues (see https://www.drupal.org/node/2195739). You
+// should use renderable arrays instead.
+// 
+// 
+// @see https://www.drupal.org/node/2195739
+// $html = theme(
+// 				'photo_gallery',
+// 				array(
+// 					'content' => $content
+// 				)
+// 			);
+
+		}
+		else if ($block == 'short') {
+			$link = \Drupal::config('apirenderer.settings')->get('apirenderer_facebook_album_short_main_node');
+			$parsed = json_decode($data, true);
+			for ($x = 0; $x < $results; $x++) {
+				$albumid = \Drupal\Component\Utility\Html::escape($parsed[$x]["id"]);
+				$count = \Drupal\Component\Utility\Html::escape($parsed[$x]["count"]);
+				$title = \Drupal\Component\Utility\Html::escape($parsed[$x]["name"]) . " ($count)";
+				$cover = \Drupal\Component\Utility\Html::escape($parsed[$x]["picture"]["data"]["url"]);
+				$link = $parsed[$x]["link"];
+				// @FIXME
+// theme() has been renamed to _theme() and should NEVER be called directly.
+// Calling _theme() directly can alter the expected output and potentially
+// introduce security issues (see https://www.drupal.org/node/2195739). You
+// should use renderable arrays instead.
+// 
+// 
+// @see https://www.drupal.org/node/2195739
+// $content .= theme(
+// 					'photo_gallery_item',
+// 					array(
+// 						'title' => $title,
+// 						'albumid' => $albumid,
+// 						'cover' => $cover,
+// 						'colorbox' => "",
+// 						'target' => "_blank",
+// 						'type' => "facebook",
+// 						'summary' => "",
+// 						'flickrembed' => "",
+// 						'link' => $link,
+// 					)
+// 				);
+
+				if (($display_count+1) % 3 == 0) {
+					$content .= '<div class="clear"></div>';
+				}
+				$display_count++;
+			}
+			// @FIXME
+// theme() has been renamed to _theme() and should NEVER be called directly.
+// Calling _theme() directly can alter the expected output and potentially
+// introduce security issues (see https://www.drupal.org/node/2195739). You
+// should use renderable arrays instead.
+// 
+// 
+// @see https://www.drupal.org/node/2195739
+// $html = theme(
+// 				'photo_gallery_sidebar',
+// 				array(
+// 					'title' => '',
+// 					'content' => $content,
+// 					'page_link' => $link
+// 				)
+// 			);
+
+		}
+	}
+	else if ($endpoint == 'feed') {
+		$data = \Drupal::state()->get('apirenderer.facebookFeedData') ?: FALSE;
+		$messageLength = \Drupal::config('apirenderer.settings')->get('apirenderer_facebook_feed_short_message_length');
+		if ($data == FALSE) {
+			// @FIXME
+// theme() has been renamed to _theme() and should NEVER be called directly.
+// Calling _theme() directly can alter the expected output and potentially
+// introduce security issues (see https://www.drupal.org/node/2195739). You
+// should use renderable arrays instead.
+// 
+// 
+// @see https://www.drupal.org/node/2195739
+// $html = theme(
+// 				'apirenderer_error',
+// 				array(
+// 					'message' => 'No data was found!'
+// 				)
+// 			);
+
+		}
+		else if ($block == 'full') {
+			$parsed = json_decode($data, true);
+			foreach($parsed["data"] as $item) {
+				$extras = false;
+				$readMore = false;
+				$picture = '';
+				$caption = '';
+				$postLink = '';
+				$link = '';
+				$icon = '';
+				$time = '';
+				$timeData = $item['created_time'];
+				$timeDataChar = str_split($timeData);
+				//Prepare for the absolute worst datetime processing ever done. I'm 100% certain there's a built-in way to do this. I'm also 0% certain how.
+				$year = $timeDataChar[0] . $timeDataChar[1] . $timeDataChar[2] . $timeDataChar[3];
+				$month = '';
+				switch ($timeDataChar[5] . $timeDataChar[6]) {
+					case '01':
+						$month = "January";
+						break;
+					case '02':
+						$month = "February";
+						break;
+					case '03':
+						$month = "March";
+						break;
+					case '04':
+						$month = "April";
+						break;
+					case '05':
+						$month = "May";
+						break;
+					case '06':
+						$month = "June";
+						break;
+					case '07':
+						$month = "July";
+						break;
+					case '08':
+						$month = "August";
+						break;
+					case '09':
+						$month = "September";
+						break;
+					case '10':
+						$month = "October";
+						break;
+					case '11':
+						$month = "November";
+						break;
+					case '12':
+						$month = "December";
+						break;
+				}
+				$day = '';
+				if ($timeDataChar[8] == 0) {
+					if ($timeDataChar[9] == '1') {
+						$day .= '1st';
+					}
+					else if ($timeDataChar[9] == '2') {
+						$day .= '2nd';
+					}
+					else if ($timeDataChar[9] == '3') {
+						$day .= '3rd';
+					}
+					else {
+						$day .= $timeDataChar[9];
+						$day .= 'th';
+					}
+				}
+				else {
+					$day .= $timeDataChar[8] . $timeDataChar[9];
+					if ($timeDataChar[8] == '1') {
+						$day .= 'th';
+					}
+					else {
+						if ($timeDataChar[9] == '1') {
+							$day .= 'st';
+						}
+						else if ($timeDataChar[9] == '2') {
+							$day .= 'nd';
+						}
+						else if ($timeDataChar[9] == '3') {
+							$day .= 'rd';
+						}
+						else {
+							$day .= 'th';
+						}
+					}
+				}
+				$hour = $timeDataChar[11] . $timeDataChar[12];
+				$hournum = (int)$hour;
+				if ($hournum > 12) {
+					$half = 'PM';
+					$hour = $hournum - 12;
+				}
+				else {
+					$half = 'AM';
+					$hour = $hournum;
+				}
+				$minute = $timeDataChar[14] . $timeDataChar[15];
+				$time = "$month $day, $year, at $hour:$minute $half";
+				$id = $item["id"];
+				$fbid = $item["from"]["id"];
+				$iconURL = "https://graph.facebook.com/$fbid/picture?redirect=false";
+				$icondata = makeRequest($iconURL);
+				if ($icondata != FALSE) {
+					$iconparsed = json_decode($icondata,true);
+					foreach ($iconparsed as $data) {
+						$icon .= $data["url"];
+					}
+				}
+				else {
+					$icon = '';
+				}
+				if (isset($item["message"])) {
+					$message = $item["message"];
+				}
+				else if (isset($item["story"])) {
+					$message = $item["story"];
+				}
+				$name = $item["from"]["name"];
+				$permalink = $item["permalink_url"];
+				$postType = $item["type"];
+				//Determine post type and related attributes. Possibilities: {mobile_status_update, created_note, added_photos, added_video, shared_story, created_group, created_event, wall_post, app_created_story, published_story, tagged_in_photo, approved_friend
+				switch($postType) {
+					case 'photo':
+						$extras = true;
+						$picture = $item["picture"];
+						$postLink = $item["link"];
+						$caption = "Click to view full-sized photo on Facebook.";
+						break;
+					case 'video':
+						$extras = true;
+						$postLink = $item["link"];
+						$picture = $item["picture"];
+						$caption = "Click to view video on Facebook.";
+						break;
+					case 'link':
+						$extras = true;
+						$postLink = $item["link"];
+						$picture = $item["picture"];
+						$caption = $item["caption"];
+						break;
+					case 'status':
+						$extras = false;
+						break;
+					case 'event':
+						$extras = true;
+						$postLink = $item["link"];
+						$picture = $item["picture"];
+						$caption = $item["caption"];
+						break;
+				}
+				$newMessage = trimMessage($message, $messageLength);
+				if ($newMessage !== $message) {
+					$message = $newMessage;
+					$readMore = true;
+				}
+				else {
+					$message = $newMessage;
+				}
+				// @FIXME
+// theme() has been renamed to _theme() and should NEVER be called directly.
+// Calling _theme() directly can alter the expected output and potentially
+// introduce security issues (see https://www.drupal.org/node/2195739). You
+// should use renderable arrays instead.
+// 
+// 
+// @see https://www.drupal.org/node/2195739
+// $content .= theme(
+// 					'apirenderer_feed_item',
+// 					array(
+// 						'id' => $id,
+// 						'name' => $name,
+// 						'message' => $message,
+// 						'permalink' => $permalink,
+// 						'picture' => $picture,
+// 						'link' => $postLink,
+// 						'icon' => $icon,
+// 						'extras' => $extras,
+// 						'caption' => $caption,
+// 						'time' => $time,
+// 						'story' => $story,
+// 						'readMore' => $readMore
+// 					)
+// 				);
+
+			}
+			// @FIXME
+// theme() has been renamed to _theme() and should NEVER be called directly.
+// Calling _theme() directly can alter the expected output and potentially
+// introduce security issues (see https://www.drupal.org/node/2195739). You
+// should use renderable arrays instead.
+// 
+// 
+// @see https://www.drupal.org/node/2195739
+// $html = theme(
+// 				'photo_gallery',
+// 				array(
+// 					'content' => $content
+// 				)
+// 			);
+
+		}
+		else if ($block == 'short') {
+			$link = \Drupal::config('apirenderer.settings')->get('apirenderer_facebook_album_short_main_node');
+			$parsed = json_decode($data, true);
+			for ($x = 0; $x < $results; $x++) {
+				$extras = false;
+				$readMore = false;
+				$picture = '';
+				$caption = '';
+				$postLink = '';
+				$link = '';
+				$icon = '';
+				$time = '';
+				$timeData = $parsed["data"][$x]['created_time'];
+				$timeDataChar = str_split($timeData);
+				//Prepare for the absolute worst datetime processing ever done. I'm 100% certain there's a built-in way to do this. I'm also 0% certain how.
+				$year = $timeDataChar[0] . $timeDataChar[1] . $timeDataChar[2] . $timeDataChar[3];
+				$month = '';
+				switch ($timeDataChar[5] . $timeDataChar[6]) {
+					case '01':
+						$month = "January";
+						break;
+					case '02':
+						$month = "February";
+						break;
+					case '03':
+						$month = "March";
+						break;
+					case '04':
+						$month = "April";
+						break;
+					case '05':
+						$month = "May";
+						break;
+					case '06':
+						$month = "June";
+						break;
+					case '07':
+						$month = "July";
+						break;
+					case '08':
+						$month = "August";
+						break;
+					case '09':
+						$month = "September";
+						break;
+					case '10':
+						$month = "October";
+						break;
+					case '11':
+						$month = "November";
+						break;
+					case '12':
+						$month = "December";
+						break;
+				}
+				$day = '';
+				if ($timeDataChar[8] == 0) {
+					if ($timeDataChar[9] == '1') {
+						$day .= '1st';
+					}
+					else if ($timeDataChar[9] == '2') {
+						$day .= '2nd';
+					}
+					else if ($timeDataChar[9] == '3') {
+						$day .= '3rd';
+					}
+					else {
+						$day .= $timeDataChar[9];
+						$day .= 'th';
+					}
+				}
+				else {
+					$day .= $timeDataChar[8] . $timeDataChar[9];
+					if ($timeDataChar[8] == '1') {
+						$day .= 'th';
+					}
+					else {
+						if ($timeDataChar[9] == '1') {
+							$day .= 'st';
+						}
+						else if ($timeDataChar[9] == '2') {
+							$day .= 'nd';
+						}
+						else if ($timeDataChar[9] == '3') {
+							$day .= 'rd';
+						}
+						else {
+							$day .= 'th';
+						}
+					}
+				}
+				$hour = $timeDataChar[11] . $timeDataChar[12];
+				$hournum = (int)$hour;
+				if ($hournum > 12) {
+					$half = 'PM';
+					$hour = $hournum - 12;
+				}
+				else {
+					$half = 'AM';
+					$hour = $hournum;
+				}
+				$minute = $timeDataChar[14] . $timeDataChar[15];
+				$time = "$month $day, $year, at $hour:$minute $half";
+				$id = $parsed["data"][$x]["id"];
+				$fbid = $parsed["data"][$x]["from"]["id"];
+				$iconURL = "https://graph.facebook.com/$fbid/picture?redirect=false";
+				$icondata = makeRequest($iconURL);
+				if ($icondata != FALSE) {
+					$iconparsed = json_decode($icondata,true);
+					foreach ($iconparsed as $data) {
+						$icon .= $data["url"];
+					}
+				}
+				else {
+					$icon = '';
+				}
+				if (isset($parsed["data"][$x]["message"])) {
+					if (isset($parsed["data"][$x]["story"])) {
+						$story = $parsed["data"][$x]["story"];
+					}
+					else {
+						$story = '';
+					}
+					$message = $parsed["data"][$x]["message"];
+				}
+				else {
+					if (isset($parsed["data"][$x]["story"])) {
+						$story = $parsed["data"][$x]["story"];
+					}
+					else {
+						$story = '';
+					}
+					$message = $parsed["data"][$x]["description"];
+				}
+				$name = $parsed["data"][$x]["from"]["name"];
+				$permalink = $parsed["data"][$x]["permalink_url"];
+				$postType = $parsed["data"][$x]["type"];
+				//Determine post type and related attributes. Possibilities: {mobile_status_update, created_note, added_photos, added_video, shared_story, created_group, created_event, wall_post, app_created_story, published_story, tagged_in_photo, approved_friend
+				switch($postType) {
+					case 'photo':
+						$extras = true;
+						$picture = $parsed["data"][$x]["picture"];
+						$postLink = $parsed["data"][$x]["link"];
+						$caption = "Click to view full-sized photo on Facebook.";
+						break;
+					case 'video':
+						$extras = true;
+						$postLink = $parsed["data"][$x]["link"];
+						$picture = $parsed["data"][$x]["picture"];
+						$caption = "Click to view video on Facebook.";
+
+						break;
+					case 'link':
+						$extras = true;
+						$postLink = $parsed["data"][$x]["link"];
+						$picture = $parsed["data"][$x]["picture"];
+						if(isset($parsed["data"][$x]["caption"])) {
+							$caption = $parsed["data"][$x]["caption"];
+						}
+						else {
+							$caption = "Click to view shared link.";
+						}
+						break;
+					case 'status':
+						$extras = false;
+						break;
+					case 'event':
+						$extras = true;
+						$postLink = $parsed["data"][$x]["link"];
+						$picture = $parsed["data"][$x]["picture"];
+						$caption = $parsed["data"][$x]["caption"];
+						break;
+				}
+				$newMessage = trimMessage($message, $messageLength);
+				if ($newMessage !== $message) {
+					$message = $newMessage;
+					$readMore = true;
+				}
+				else {
+					$message = $newMessage;
+				}
+				// @FIXME
+// theme() has been renamed to _theme() and should NEVER be called directly.
+// Calling _theme() directly can alter the expected output and potentially
+// introduce security issues (see https://www.drupal.org/node/2195739). You
+// should use renderable arrays instead.
+// 
+// 
+// @see https://www.drupal.org/node/2195739
+// $content .= theme(
+// 					'apirenderer_feed_item',
+// 					array(
+// 						'id' => $id,
+// 						'name' => $name,
+// 						'message' => $message,
+// 						'permalink' => $permalink,
+// 						'picture' => $picture,
+// 						'link' => $postLink,
+// 						'icon' => $icon,
+// 						'extras' => $extras,
+// 						'caption' => $caption,
+// 						'time' => $time,
+// 						'story' => $story,
+// 						'readMore' => $readMore
+// 					)
+// 				);
+
+			}
+			// @FIXME
+// theme() has been renamed to _theme() and should NEVER be called directly.
+// Calling _theme() directly can alter the expected output and potentially
+// introduce security issues (see https://www.drupal.org/node/2195739). You
+// should use renderable arrays instead.
+// 
+// 
+// @see https://www.drupal.org/node/2195739
+// $html = theme(
+// 				'photo_gallery_sidebar',
+// 				array(
+// 					'title' => 'Facebook',
+// 					'content' => $content,
+// 					'page_link' => $link
+// 				)
+// 			);
+
+		}
+	}
+	else {
+		// @FIXME
+// theme() has been renamed to _theme() and should NEVER be called directly.
+// Calling _theme() directly can alter the expected output and potentially
+// introduce security issues (see https://www.drupal.org/node/2195739). You
+// should use renderable arrays instead.
+// 
+// 
+// @see https://www.drupal.org/node/2195739
+// $data = theme(
+// 			'apirenderer_error',
+// 			array(
+// 				'message' => 'No data was found!'
+// 			)
+// 		);
+
+	}
+	return $html;
+}
+function trimMessage($message, $length) {
+	$return = '';
+	if (strlen($message) > $length) {
+		$return = substr($message, 0, strpos(wordwrap($message, $length), "\n"));
+	}
+	else {
+		$return = $message;
+	}
+	return $return;
+}
+
+/************************************
+             FLICKR API
+ ************************************/
+
+/**
+ * GET DATA FLICKR FUNCTION
+ *
+ * Gets the data for Flickr and sets it into a variable.
+ *
+ * If successful, returns TRUE. Otherwise, returns an error message.
+ */
+function getDataFlickr($key) {
+	$return = '';
+	$content = '';
+	$error = '';
+	//Construct the URL.
+	$url = "https://api.flickr.com/services/rest/?method=flickr.photos.getRecent&format=json&api_key=$key";
+	//Make the request.
+	$result = makeRequest($url);
+	$resultParsed = json_decode($result, true);
+	//Work with the data returned.
+	if (json_last_error() != JSON_ERROR_NONE) {
+		$error = "Flickr Data failed to decode with the following error: [$result]. There is a problem with the SSL configuration or data source. Please contact your web administrator.";
+	}
+	else if (array_key_exists('error', $resultParsed)) {
+		$error = "Flickr Error {$resultParsed['error']['code']} {$resultParsed['error']['type']}: {$resultParsed['error']['message']}";
+	}
+	//Return value setting.
+	if ($error == '') {
+		\Drupal::state()->set('apirenderer.flickrData', $result);
+		$return = TRUE;
+	}
+	else {
+		$return = $error;
+	}
+}
+
+/**
+ * API RENDERER FLICKR CONTENTS FUNCTION
+ *
+ * Function to create the contents of the Flickr Block.
+ *
+ * Returns: The themed block of the gallery.
+ */
+function apirenderer_flickr_contents($block, $results = 1) {
+
+}
+
+/************************************
+        INSTAGRAM GALLERY API
+ ************************************/
+
+/**
+ * GET DATA INSTAGRAM FUNCTION
+ *
+ * Gets the data for Instagram and sets it into a variable.
+ *
+ * If successful, returns TRUE. Otherwise, returns an error message.
+ */
+function getDataInstagram($token) {
+	//Initial variable setup.
+	$return = '';
+	$content = '';
+	$error = '';
+	//Construct the URL.
+	$url = "https://api.instagram.com/v1/users/self/media/recent/?count=30&access_token=$token";
+	//Make the request.
+	$result = makeRequest($url);
+	$resultParsed = json_decode($result, true);
+	//Work with the data returned.
+	if (json_last_error() != JSON_ERROR_NONE) {
+		$error = "Data failed to decode with the following error: [$result]. There is a problem with the SSL configuration or data source. Please contact your web administrator.";
+	}
+	else if (array_key_exists('meta', $resultParsed)) {
+		if (array_key_exists('error_code', $resultParsed['meta'])) {
+			$error = "{$resultParsed['meta']['code']} {$resultParsed['meta']['error_type']}: {$resultParsed['meta']['error_message']}";
+		}
+	}
+	//Final return value.
+	if ($error == '') {
+		\Drupal::state()->set('apirenderer.instagramData', $result);
+		$return = TRUE;
+	}
+	else {
+		$return = $error;
+	}
+	return $return;
+}
+
+/**
+ * API RENDERER INSTAGRAM GALLERY CONTENTS FUNCTION
+ *
+ * Function to create the contents of the Instagram Gallery Block.
+ *
+ * Returns: The themed block of the gallery.
+ */
+function apirenderer_instagram_gallery_contents($block, $results = 1) {
+	$html = '';
+	$data = \Drupal::state()->get('apirenderer.instagramData');
+	if ($data == FALSE) {
+		// @FIXME
+// theme() has been renamed to _theme() and should NEVER be called directly.
+// Calling _theme() directly can alter the expected output and potentially
+// introduce security issues (see https://www.drupal.org/node/2195739). You
+// should use renderable arrays instead.
+// 
+// 
+// @see https://www.drupal.org/node/2195739
+// $html = theme(
+// 			'apirenderer_error',
+// 			array(
+// 				'message' => 'No data was found!'
+// 			)
+// 		);
+
+	}
+	else if ($block == 'full') {
+		$content = '';
+		$parsed = json_decode($data, true);
+		foreach($parsed['data'] as $itm) {
+			$albumid = $itm["id"];
+			$title = $itm["caption"]["text"];
+			$cover = $itm["images"]["low_resolution"]["url"];
+			$link = $itm["link"];
+			// @FIXME
+// theme() has been renamed to _theme() and should NEVER be called directly.
+// Calling _theme() directly can alter the expected output and potentially
+// introduce security issues (see https://www.drupal.org/node/2195739). You
+// should use renderable arrays instead.
+// 
+// 
+// @see https://www.drupal.org/node/2195739
+// $content .= theme(
+// 				'photo_gallery_item',
+// 				array(
+// 					'title' => $title,
+// 					'albumid' => $albumid,
+// 					'cover' => $cover,
+// 					'colorbox' => "",
+// 					'target' => "_blank",
+// 					'type' => "instagram",
+// 					'summary' => "",
+// 					'flickrembed' => "",
+// 					'link' => $link
+// 				)
+// 			);
+
+		}
+		// @FIXME
+// theme() has been renamed to _theme() and should NEVER be called directly.
+// Calling _theme() directly can alter the expected output and potentially
+// introduce security issues (see https://www.drupal.org/node/2195739). You
+// should use renderable arrays instead.
+// 
+// 
+// @see https://www.drupal.org/node/2195739
+// $html = theme(
+// 			'photo_gallery',
+// 			array(
+// 				'content' => $content
+// 			)
+// 		);
+
+	}
+	else if ($block == 'short') {
+		$link = \Drupal::config('apirenderer.settings')->get('apirenderer_instagram_gallery_short_main_node');
+		$content = '';
+		$parsed = json_decode($data, true);
+		$resultNumber = 0;
+		foreach($parsed['data'] as $itm) {
+			$albumid = $itm["id"];
+			$title = $itm["caption"]["text"];
+			$cover = $itm["images"]["low_resolution"]["url"];
+			$link = $itm["link"];
+			// @FIXME
+// theme() has been renamed to _theme() and should NEVER be called directly.
+// Calling _theme() directly can alter the expected output and potentially
+// introduce security issues (see https://www.drupal.org/node/2195739). You
+// should use renderable arrays instead.
+// 
+// 
+// @see https://www.drupal.org/node/2195739
+// $content .= theme(
+// 				'photo_gallery_item',
+// 				array(
+// 					'title' => $title,
+// 					'albumid' => $albumid,
+// 					'cover' => $cover,
+// 					'colorbox' => "",
+// 					'target' => "_blank",
+// 					'type' => "instagram",
+// 					'summary' => "",
+// 					'flickrembed' => "",
+// 					'link' => $link
+// 				)
+// 			);
+
+			$resultNumber++;
+			if ($resultNumber == $results) {
+				break;
+			}
+		}
+		// @FIXME
+// theme() has been renamed to _theme() and should NEVER be called directly.
+// Calling _theme() directly can alter the expected output and potentially
+// introduce security issues (see https://www.drupal.org/node/2195739). You
+// should use renderable arrays instead.
+// 
+// 
+// @see https://www.drupal.org/node/2195739
+// $html = theme(
+// 			'photo_gallery_sidebar',
+// 			array(
+// 				'title' => 'Instagram',
+// 				'content' => $content,
+// 			)
+// 		);
+
+	}
+	return $html;
+}
+
+/************************************
+            PROPUBLICA API
+ ************************************/
+
+/**
+ * GET DATA PROPUBLICA FUNCTION
+ *
+ * Gets the data for propublica and sets it into a variable.
+ *
+ * If successful, returns TRUE. Otherwise, returns an error message.
+ */
+function getDataPropublica($key, $id) {
+	//Start the variables for the theme.
+	$return = '';
+	$contentSp = '';
+	$contentCo = '';
+	$contentError = '';
+	//These are the base URLs for making the request. It gets the Congressman's ID and adds it to the URL.
+	$urlSp = "https://api.propublica.org/congress/v1/members/$id/bills/introduced.json";
+	$urlCo = "https://api.propublica.org/congress/v1/members/$id/bills/cosponsored.json";
+	//The header must contain the API key, and thanks to this will be hidden. This must be setup by the user.
+	$headers = array(
+		('X-API-Key: ' . $key),
+	);
+	//Make the actual request. Assuming it returns results, continue as intended.
+	$resultSp = makeRequest($urlSp, $headers);
+	$resultCo = makeRequest($urlCo, $headers);
+	$resultSpParsed = json_decode($resultSp, true);
+	$resultCoParsed = json_decode($resultCo, true);
+	//Verify if the result is actually the JSON data or not.
+	if (json_last_error() != JSON_ERROR_NONE) {
+		$contentError = "Propublica Data failed to decode with the following errors: [$resultSp], [$resultCo]. There is a problem with the SSL configuration or data source. Please contact your web administrator.";
+	}
+	//Verify that the result returned was not a refusal of connection.
+	else if ($resultSpParsed['status'] != 'OK' || $resultCoParsed['status'] != 'OK') {
+		$contentError = "There was an error in retrieving the legislation data. The status codes following were returned: [{$resultSpParsed['status']}] and/or [{$resultCoParsed['status']}]. It is possible that you may have misconfigured the Key or ID.";
+	}
+	else {
+		//First, the Sponsored table. This themes each set of data as a row, then appends it into the content.
+		$contentSp = createPropublicaPages($urlSp, $headers, 'Sp');
+		//Next, the Cosponsored table. This themes each set of data as a row, then appends it into the content.
+		$contentCo = createPropublicaPages($urlCo, $headers, 'Co');
+	}
+	//Finally, determine if the operation was successful, and take appropriate action.
+	if ($contentError == '') {
+		\Drupal::state()->set('apirenderer.propublicaSpData', $contentSp);
+		\Drupal::state()->set('apirenderer.propublicaCoData', $contentCo);
+		$return = TRUE;
+	}
+	else {
+		$return = $contentError;
+	}
+	return $return;
+}
+
+/**
+ * API RENDERER PROPUBLICA CONTENTS FUNCTION
+ *
+ * Returns block content for the Propublica API.
+ *
+ * Returns: The themed HTML.
+ */
+function apirenderer_propublica_contents($results) {
+	$html = '';
+	$dataSp = \Drupal::state()->get('apirenderer.propublicaSpData');
+	$dataCo = \Drupal::state()->get('apirenderer.propublicaCoData');
+	if ($dataSp == FALSE || $dataCo == FALSE) {
+		// @FIXME
+// theme() has been renamed to _theme() and should NEVER be called directly.
+// Calling _theme() directly can alter the expected output and potentially
+// introduce security issues (see https://www.drupal.org/node/2195739). You
+// should use renderable arrays instead.
+// 
+// 
+// @see https://www.drupal.org/node/2195739
+// $html = theme(
+// 			'apirenderer_error',
+// 			array(
+// 				'message' => 'No data was found!'
+// 			)
+// 		);
+
+	}
+	else {
+		// @FIXME
+// theme() has been renamed to _theme() and should NEVER be called directly.
+// Calling _theme() directly can alter the expected output and potentially
+// introduce security issues (see https://www.drupal.org/node/2195739). You
+// should use renderable arrays instead.
+// 
+// 
+// @see https://www.drupal.org/node/2195739
+// $html = theme(
+// 			'apirenderer_propublica_table',
+// 			array(
+// 				'contentSp' => $dataSp,
+// 				'contentCo' => $dataCo,
+// 				'results' => $results
+// 			)
+// 		);
+
+	}
+	return $html;
+}
+
+/**
+ * API RENDERER PRO PUBLICA CONTENTS FUNCTION
+ *
+ * Generates block contents for the Pro Publica API block.
+ *
+ * Returns: The various pages which will be placed in the contents.
+ */
+function createPropublicaPages($url, $headers, $table) {
+	$content = '';
+	$notLast = true;
+	$page = 1;
+	while ($notLast) {
+		if ($page == 1) {
+			$urlComplete = $url;
+		}
+		else {
+			$urlComplete = $url . "?offset=" . ($page * 20);
+		}
+		$result = makeRequest($urlComplete, $headers);
+		$resultParsed = json_decode($result, true);
+		if (count($resultParsed['results'][0]['bills']) < 20) {
+			$notLast = false;
+			if (count($resultParsed['results'][0]['bills']) == 0) {
+				return $content;
+			}
+		}
+		if (json_last_error() != JSON_ERROR_NONE) {
+			// @FIXME
+// theme() has been renamed to _theme() and should NEVER be called directly.
+// Calling _theme() directly can alter the expected output and potentially
+// introduce security issues (see https://www.drupal.org/node/2195739). You
+// should use renderable arrays instead.
+// 
+// 
+// @see https://www.drupal.org/node/2195739
+// $content .= theme(
+// 				'apirenderer_propublica_item',
+// 				array(
+// 					'url' => '',
+// 					'number' => '',
+// 					'title' => "Propublica Data failed to decode with the following error: [$result]. There is a problem with the SSL configuration or data source. Please contact your web administrator.",
+// 					'date' => '',
+// 					'this' => 'error',
+// 					'congress' => 'error'
+// 				)
+// 			);
+
+		}
+		else if ($resultParsed['status'] != 'OK') {
+			// @FIXME
+// theme() has been renamed to _theme() and should NEVER be called directly.
+// Calling _theme() directly can alter the expected output and potentially
+// introduce security issues (see https://www.drupal.org/node/2195739). You
+// should use renderable arrays instead.
+// 
+// 
+// @see https://www.drupal.org/node/2195739
+// $content .= theme(
+// 				'apirenderer_propublica_item',
+// 				array(
+// 					'url' => '',
+// 					'number' => '',
+// 					'title' => "There was an error in retrieving the legislation data. The status code following was returned: [{$resultParsed['status']}]. It is possible that you may have misconfigured the Key or ID.",
+// 					'date' => '',
+// 					'this' => 'error',
+// 					'congress' => 'error'
+// 				)
+// 			);
+
+		}
+		else foreach ($resultParsed['results'][0]['bills'] as $bill) {
+			// @FIXME
+// theme() has been renamed to _theme() and should NEVER be called directly.
+// Calling _theme() directly can alter the expected output and potentially
+// introduce security issues (see https://www.drupal.org/node/2195739). You
+// should use renderable arrays instead.
+// 
+// 
+// @see https://www.drupal.org/node/2195739
+// $content .= theme(
+// 				'apirenderer_propublica_item',
+// 				array(
+// 					'url' => $bill['congressdotgov_url'],
+// 					'number' => $bill['number'],
+// 					'title' => $bill['title'],
+// 					'date' => $bill['introduced_date'],
+// 					'this' => $table,
+// 					'congress' => $bill['congress']
+// 				)
+// 			);
+
+		}
+		$page++;
+	}
+
+	return $content;
+}
+
+/************************************
+        	TWITTER API
+ ************************************/
+
+/**
+ * APIRENDERER TWITTER DATA
+ * 
+ * Gets the data for the twitter block.
+ * 
+ * If successful, returns the data. If not successful, appears to break with no useful errors? Why though?
+ */
+function getDataTwitter($oauth_access_token, $oauth_access_token_secret, $consumer_key, $consumer_secret, $user_timeline, $count) {
+	$return = FALSE;
+	/** Set access tokens here - see: https://dev.twitter.com/apps/ **/
+	$settings = array(
+	    'oauth_access_token' => $oauth_access_token,
+	    'oauth_access_token_secret' => $oauth_access_token_secret,
+	    'consumer_key' => $consumer_key,
+	    'consumer_secret' => $consumer_secret,
+	);
+	//Endpoint URL
+	$url = "https://api.twitter.com/1.1/statuses/user_timeline.json";
+	$requestMethod = "GET";
+	$getfield = "?screen_name=$user_timeline&count=$count";
+	$twitter = new TwitterAPIExchange($settings);
+	$result = $twitter->setGetfield($getfield)->buildOauth($url, $requestMethod)->performRequest();
+	$data = json_decode($result, TRUE);
+	if ($data === NULL ||empty($data)) {
+		$return = "Something went wrong with the twitter feed provided.";
+	}
+	else {
+		\Drupal::state()->set('apirenderer.twitterData', $data);
+		$return = TRUE;
+	}
+	return $return;
+}

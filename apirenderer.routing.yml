@@ -1,0 +1,7 @@
+apirenderer.form:
+  path: /admin/config/content/apirenderer
+  defaults:
+    _title: 'Leidos Website API Renderer'
+    _form: \Drupal\apirenderer\Form\ApirendererForm
+  requirements:
+    _permission: 'access administration pages'

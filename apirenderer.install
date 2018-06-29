@@ -1,0 +1,21 @@
+<?php
+/**
+* @file
+* Uninstall for Leidos Website API Renderer.
+*/
+
+function apirenderer_uninstall() {
+	\Drupal::config('apirenderer.settings')->clear('apirenderer_propublica_key')->save();
+	\Drupal::config('apirenderer.settings')->clear('apirenderer_propublica_id')->save();
+	\Drupal::config('apirenderer.settings')->clear('apirenderer_propublica_default_results')->save();
+	\Drupal::config('apirenderer.settings')->clear('apirenderer_eventbrite_key')->save();
+	\Drupal::config('apirenderer.settings')->clear('apirenderer_eventbrite_noevents')->save();
+	\Drupal::config('apirenderer.settings')->clear('apirenderer_instagram_gallery_token')->save();
+	\Drupal::config('apirenderer.settings')->clear('apirenderer_instagram_gallery_id')->save();
+	\Drupal::config('apirenderer.settings')->clear('apirenderer_facebook_album_token')->save();
+	\Drupal::config('apirenderer.settings')->clear('apirenderer_facebook_album_id')->save();
+	\Drupal::config('apirenderer.settings')->clear('apirenderer_propublica_data')->save();
+	\Drupal::config('apirenderer.settings')->clear('apirenderer_eventbrite_data')->save();
+	\Drupal::config('apirenderer.settings')->clear('apirenderer_instagram_data')->save();
+	\Drupal::config('apirenderer.settings')->clear('apirenderer_facebook_data')->save();
+}

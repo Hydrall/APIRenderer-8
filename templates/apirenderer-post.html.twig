@@ -1,0 +1,95 @@
+{#
+/**
+ * @file
+ * APIRenderer twitter and facebook feed post block.
+ *
+ * Available variables:
+ * - type: The type of block this is.
+ * - icon: The user's avatar or icon.
+ * - name: The user's screen name.
+ * - content: The main post content or message.
+ * - url: The link to the post's origin.
+ * - date: The date of the post.
+ * - extras: Extra content in an array added onto the post - different for Twitter and Facebook.
+ *
+ * @ingroup themeable
+ */
+#}
+<div class="post {{ type }} col-xs-12">
+    <div class="icon-box col-xs-2">
+        <a href="{{ url }}">
+            <img src="{{ icon }}" alt="{{ name }}"></img>
+        </a>
+    </div>
+    <div class="message-box col-xs-10">
+        {#
+            FACEBOOK-FEED
+        #}
+        {% if type == 'facebook-feed' %}
+            <div class="facebook-message-box col-md-10">
+                <div class="facebook-identity-box col-xs-12">
+                    <div class="facebook-name">
+                        <a href="{{ url }}" class="facebook-name-link">
+                            {{ name }}
+                        </a>
+                    </div>
+                    <a href="{{ url }}" class="facebook-time-link">
+                        {{ date }}
+                    </a>
+                </div>
+                {% if extras is not null %}
+                    <div class="facebook-message col-lg-8 col-xs-12">
+                        <p class="facebook-story">{{ extras.story }}</p>
+                        <p>{{ content }}{% if extras.readMore %}...{% endif %}</p>
+                        {% if extras.readMore %}
+                            <p><a class="readmore" href="{{ url }}">Read More</a></p>
+                        {% endif %}
+                    </div>
+                {% else %}
+                    <div class="facebook-message col-xs-12">
+                        <p>{{ content }}</p>
+                    </div>
+                {% endif %}
+                {% if extras is not null %}
+                    <div class="extras-box col-lg-4 col-xs-12">
+                        {% if extras.link %}
+                            <a href="{{ extras.link }}" class="facebook-extras-link">
+                        {% endif %}
+                            {% if extras.thumbnail %}
+                                <img src="{{ extras.thumbnail }}" class="facebook-extras-picture" />
+                            {% endif %}
+                            {% if extras.caption %}
+                                <div class="facebook-caption">{{ extras.caption }}</div>
+                            {% endif %}
+                        {% if extras.link %}
+                            </a>
+                       {% endif %}
+                    </div>
+                {% endif %}
+            </div>
+        {#
+            TWITTER
+        #}
+        {% elseif type == 'twitter' and extras is not null %}
+            <strong>{{ extras.realName }}</strong><br />
+            <a href="{{ url }}" target="_blank">@{{ name }}</a><span class="date"> {{ date }}</span><br /><br />
+            <div class="{{ extras.retweetedStatusClass }}">
+                {% if extras.quotedStatus %}
+                    <div class="quoted">
+                        <strong>{{ extras.quotedUser }}</strong> <a href="{{ url }}">@{{ extras.quotedScreenName }}</a> <span class="date">{{ extras.quotedDate }}</span><br />
+                        <p class="quoted-message">{{ extras.quotedMessage }}</p>
+                    </div>
+                {% else %}
+                    <div class="not-quoted">
+                        <p class="twitter-message">{{ content }}</p>
+                    </div>
+                {% endif %}
+            </div>
+            <div class="utilbar row col-md-6 col-sm-12">
+				<span class="respond"><a href="{{ url }}" target="_blank"><span class="fa fa-reply"></span></a></span>
+				<span class="retweets"><a href="{{ url }}" target="_blank"><span class="fa fa-retweet"></span> {{ extras.retweetCount }}</a></span>
+				<span class="favs"><span class="fa fa-heart"></span> {{ extras.favCount }}</span>
+			</div>
+        {% endif %}
+    </div>
+</div>

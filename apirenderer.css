@@ -1,0 +1,126 @@
+/*****************************
+        GENERAL STYLES PHOTO FEEDS
+******************************/
+
+.block-apirenderer-instagram-gallery, .block-apirenderer-facebook-album {
+	clear: left;
+}
+
+.photo-feed .read-more {
+	clear: both;
+	display: none;
+}
+
+/*****************************
+          LIST VIEW photo feeds
+******************************/
+
+.feed-item {
+	margin-bottom: 15px;
+	padding: 0;
+}
+
+.feed-item-thumbnail img {
+	max-width: 100%;
+	height: auto;	
+}
+
+.feed-item-title {
+	display: none;
+}
+
+/*
+	block-apirenderer-propublica
+*/
+
+#block-apirenderer-propublica td, #block-apirenderer-propublica th {
+	padding: 10px !important;
+}
+#block-apirenderer-propublica div#filter {
+	padding: 10px;
+	margin-top: 10px;
+}
+
+#block-apirenderer-propublica select#selectMe {
+	padding: 10px;
+	width: 80%;
+}
+
+#block-apirenderer-propublica #filter select {
+	margin-top: 15px;
+}
+
+#block-apirenderer-propublica #search-thomas {
+	margin-top: 15px;
+}
+
+/*
+	block-apirenderer-eventbrite
+*/
+
+#block-apirenderer-eventbrite .titlehead {
+	color: #282C35;
+	font-size: 18px;
+}
+#block-apirenderer-eventbrite .event_box h2 {
+	font-size: 15px;
+	text-align: center;
+	color: #45494E;
+}
+#block-apirenderer-eventbrite .event_box div.formattedDate {
+	color: #45494E;
+	font-size: 15px;
+}
+#block-apirenderer-eventbrite .event_box p.link {
+	color: #fff;
+	font-size: 12px;
+	padding-top: 10px;
+}
+#block-apirenderer-eventbrite .event {
+	border:2px solid #cecece;
+	overflow: hidden;
+	background-color: rgba(250, 235, 215, 0.4);
+}
+#block-apirenderer-eventbrite .event:hover {
+	box-shadow: -1px 1px 5px grey;
+}
+#block-apirenderer-eventbrite .eventImg {
+	border: none !important;
+	display: block;
+	margin: auto;
+}
+#block-apirenderer-eventbrite .free{
+	text-transform: uppercase;
+	color: #45494E;
+	font-size: 14px;
+	background-color: #EFF2F5;
+	display: block;
+	margin: auto;
+}
+#block-apirenderer-eventbrite h2.block-title {
+	display: none !important;
+}
+#block-apirenderer-eventbrite div.event hr {
+	display: inline-block;
+	clear: left;
+	margin: -0.66em 0;
+	visibility: hidden;
+}
+#block-apirenderer-eventbrite .leftColumn {
+	padding-right: 30px;
+}
+
+/*
+	Block Twitter
+*/ 
+.tweet-item {
+	padding: 2em 0; 
+	border-bottom: 1px solid #efefef;
+}
+.quoted {
+	border: 1px solid #efefef;
+	padding: 10px 15px;
+}
+.twitter-title-1 {
+	display: inline;
+}

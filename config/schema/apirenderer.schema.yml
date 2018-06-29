@@ -1,0 +1,44 @@
+apirenderer_proxy:
+  type: string
+apirenderer_propublica_id:
+  type: string
+apirenderer_propublica_key:
+  type: string
+apirenderer_propublica_default_results:
+  type: string
+apirenderer_eventbrite_key:
+  type: string
+apirenderer_eventbrite_noevents:
+  type: string
+apirenderer_instagram_gallery_token:
+  type: string
+apirenderer_instagram_gallery_short_default_results:
+  type: integer
+apirenderer_instagram_gallery_short_main_node:
+  type: string
+apirenderer_facebook_id:
+  type: string
+apirenderer_facebook_token:
+  type: string
+apirenderer_facebook_album_short_default_results:
+  type: integer
+apirenderer_facebook_album_short_main_node:
+  type: string
+apirenderer_facebook_feed_short_default_results:
+  type: integer
+apirenderer_facebook_feed_short_message_length:
+  type: integer
+apirenderer_facebook_feed_short_main_node:
+  type: string
+apirenderer_twitter_consumer_key:
+  type: string
+apirenderer_twitter_consumer_key_secret:
+  type: string
+apirenderer_twitter_oauth_access_token:
+  type: string
+apirenderer_twitter_oauth_access_token_secret:
+  type: string
+apirenderer_twitter_user_timeline:
+  type: string
+apirenderer_twitter_count:
+  type: integer

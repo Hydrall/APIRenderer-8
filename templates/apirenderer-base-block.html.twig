@@ -1,0 +1,34 @@
+{#
+/**
+ * @file
+ * APIRenderer implementation of the base block which all blocks will use.
+ *
+ * Available variables:
+ * - type: The API used for this block. Values: TWITTER, PROPUBLICA, FACEBOOK-FEED, FACEBOOK-ALBUM, INSTAGRAM, FLICKR, EVENTBRITE, ERROR.
+ * - content: The list of posts, bills, or otherwise.
+ * - name: (optional) Username of social media, if applicable.
+ * - url: (optional) URL for 'follow' link or otherwise.
+ *
+ * @ingroup themeable
+ */
+#}
+
+<div class="apirenderer {{ type }}">
+        <h1 class="apirenderer-title">
+            {% if type == 'twitter' %}
+                <span class="twitter-title">Tweets</span><span class="twitter-title-2">  by @{{ name }}</span>
+            {% else %}
+                {{ type }}
+            {% endif %}
+        </h1>
+    <div class="content">
+        {{ content }}
+    </div>
+    {% if type == 'twitter' or type == 'facebook-feed' or type == 'instagram' %}
+        <div class="follow-me">
+            <a href="{{ url }}" class="btn btn-default {{ type }}-follow">
+                Follow me on {{ type }}
+            </a>
+        </div>
+    {% endif %}
+</div>
