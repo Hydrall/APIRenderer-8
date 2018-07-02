@@ -4,7 +4,7 @@
  * APIRenderer twitter and facebook feed post block.
  *
  * Available variables:
- * - type: The type of block this is.
+ * - blocktype: The type of block this is.
  * - icon: The user's avatar or icon.
  * - name: The user's screen name.
  * - content: The main post content or message.
@@ -15,7 +15,7 @@
  * @ingroup themeable
  */
 #}
-<div class="post {{ type }} col-xs-12">
+<div class="post {{ blocktype }} col-xs-12">
     <div class="icon-box col-xs-2">
         <a href="{{ url }}">
             <img src="{{ icon }}" alt="{{ name }}"></img>
@@ -25,7 +25,7 @@
         {#
             FACEBOOK-FEED
         #}
-        {% if type == 'facebook-feed' %}
+        {% if blocktype == 'facebook-feed' %}
             <div class="facebook-message-box col-md-10">
                 <div class="facebook-identity-box col-xs-12">
                     <div class="facebook-name">
@@ -70,25 +70,25 @@
         {#
             TWITTER
         #}
-        {% elseif type == 'twitter' and extras is not null %}
+        {% elseif blocktype == 'twitter' and extras is not null %}
             <strong>{{ extras.realName }}</strong><br />
-            <a href="{{ url }}" target="_blank">@{{ name }}</a><span class="date"> {{ date }}</span><br /><br />
+            <a href="{{ url }}" target="_blank">@{{ name }}</a><span class="date"> {{ date }}</span>
             <div class="{{ extras.retweetedStatusClass }}">
                 {% if extras.quotedStatus %}
                     <div class="quoted">
-                        <strong>{{ extras.quotedUser }}</strong> <a href="{{ url }}">@{{ extras.quotedScreenName }}</a> <span class="date">{{ extras.quotedDate }}</span><br />
-                        <p class="quoted-message">{{ extras.quotedMessage }}</p>
+                        <strong>{{ extras.quotedUser }}</strong> <a href="{{ url }}">@{{ extras.quotedScreenName }}</a> <span class="date">{{ extras.quotedDate }}</span>
+                        <p class="quoted-message">{{ extras.quotedMessage|raw }}</p>
                     </div>
                 {% else %}
                     <div class="not-quoted">
-                        <p class="twitter-message">{{ content }}</p>
+                        <p class="twitter-message">{{ content|raw }}</p>
                     </div>
                 {% endif %}
             </div>
             <div class="utilbar row col-md-6 col-sm-12">
 				<span class="respond"><a href="{{ url }}" target="_blank"><span class="fa fa-reply"></span></a></span>
 				<span class="retweets"><a href="{{ url }}" target="_blank"><span class="fa fa-retweet"></span> {{ extras.retweetCount }}</a></span>
-				<span class="favs"><span class="fa fa-heart"></span> {{ extras.favCount }}</span>
+				<span class="favs"><a href="{{ url }}" target="_blank"><span class="fa fa-heart"></span> {{ extras.favCount }}</a></span>
 			</div>
         {% endif %}
     </div>

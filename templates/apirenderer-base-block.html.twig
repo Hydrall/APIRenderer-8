@@ -13,21 +13,21 @@
  */
 #}
 
-<div class="apirenderer {{ type }}">
+<div class="apirenderer {{ blocktype }}">
         <h1 class="apirenderer-title">
-            {% if type == 'twitter' %}
+            {% if blocktype == 'twitter' %}
                 <span class="twitter-title">Tweets</span><span class="twitter-title-2">  by @{{ name }}</span>
             {% else %}
-                {{ type }}
+                {{ blocktype }}
             {% endif %}
         </h1>
     <div class="content">
-        {{ content }}
+        {{ content|raw }}
     </div>
-    {% if type == 'twitter' or type == 'facebook-feed' or type == 'instagram' %}
+    {% if blocktype == 'twitter' or blocktype == 'facebook-feed' or blocktype == 'instagram' %}
         <div class="follow-me">
-            <a href="{{ url }}" class="btn btn-default {{ type }}-follow">
-                Follow me on {{ type }}
+            <a href="{{ url }}" class="btn btn-default {{ blocktype }}-follow">
+                Follow me on {{ blocktype }}
             </a>
         </div>
     {% endif %}

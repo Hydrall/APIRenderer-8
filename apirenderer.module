@@ -102,7 +102,7 @@ function apirenderer_theme($existing, $type, $theme, $path) {
 		//Used for: ALL
 		'apirenderer-base-block' => array(
 			'variables' => array(
-				'type' => NULL, //The API used for this block. Values: TWITTER, PROPUBLICA, FACEBOOK-FEED, FACEBOOK-ALBUM, INSTAGRAM, FLICKR, EVENTBRITE, ERROR.
+				'blocktype' => NULL, //The API used for this block. Values: TWITTER, PROPUBLICA, FACEBOOK-FEED, FACEBOOK-ALBUM, INSTAGRAM, FLICKR, EVENTBRITE, ERROR.
 				'content' => NULL, //The list of posts, bills, or otherwise.
 				'name' => NULL, //Username of social media, if applicable.
 				'url' => NULL, //URL for 'follow' link or otherwise.
@@ -147,7 +147,7 @@ function apirenderer_theme($existing, $type, $theme, $path) {
 			'variables' => array(
 				'title' => NULL, //Title of the post - used for alt text.
 				'image' => NULL, //The thumbnail image to be displayed.
-				'type' => NULL, //The type of image that this is.
+				'blocktype' => NULL, //The type of image that this is.
 				'link' => NULL, //The link the image should go to.
 			),
 			'template' => 'apirenderer-image',
@@ -155,7 +155,7 @@ function apirenderer_theme($existing, $type, $theme, $path) {
 		//Used for: TWITTER, FACEBOOK-FEED
 		'apirenderer-post' => array(
 			'variables' => array(
-				'type' => NULL, //The type of block this is.
+				'blocktype' => NULL, //The type of block this is.
 				'icon' => NULL, //The user's avatar or icon.
 				'name' => NULL, //The user's screen name.
 				'content' => NULL, //The main post content or message.
@@ -255,10 +255,10 @@ function apirenderer_cron() {
 		$vars['facebookID'] = $facebookID;
 	}
 	if ($twitter_consumer_key && $twitter_consumer_key_secret && $twitter_oauth_access_token && $twitter_oauth_access_token_secret && $twitter_user_timeline && $twitter_count) {
-		$vars['twitter_oauth_access_token'] = $twitter_consumer_key;
-		$vars['twitter_oauth_access_token_secret'] = $twitter_consumer_key_secret;
-		$vars['twitter_consumer_key'] = $twitter_oauth_access_token;
-		$vars['twitter_consumer_key_secret'] = $twitter_oauth_access_token_secret;
+		$vars['twitter_oauth_access_token'] = $twitter_oauth_access_token;
+		$vars['twitter_oauth_access_token_secret'] = $twitter_oauth_access_token_secret;
+		$vars['twitter_consumer_key'] = $twitter_consumer_key;
+		$vars['twitter_consumer_key_secret'] = $twitter_consumer_key_secret;
 		$vars['twitter_user_timeline'] = $twitter_user_timeline;
 		$vars['twitter_count'] = $twitter_count;
 	}
@@ -396,7 +396,7 @@ function apirendererRefresh($vars) {
 			}
 		}
 		if (($key == 'twitter_oauth_access_token') && ($val)) {
-			$dataResultTwit = $dataResultTwitter = getDataTwitter($vars['twitter_oauth_access_token'], $vars['twitter_oauth_access_token_secret'], $vars['twitter_consumer_key'], $vars['twitter_consumer_key_secret'], $vars['twitter_user_timeline'], $vars['twitter_count']);
+			$dataResultTwit = getDataTwitter($vars['twitter_oauth_access_token'], $vars['twitter_oauth_access_token_secret'], $vars['twitter_consumer_key'], $vars['twitter_consumer_key_secret'], $vars['twitter_user_timeline'], $vars['twitter_count']);
 			if ($dataResultTwit !== true) {
 				drupal_set_message(t("Error: $dataResultTwit"), 'warning');
 			}
