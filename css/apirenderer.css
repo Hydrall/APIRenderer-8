@@ -113,14 +113,14 @@
 /*
 	Block Twitter
 */ 
-.tweet-item {
+.post.twitter {
 	padding: 2em 0; 
 	border-bottom: 1px solid #efefef;
 }
-.quoted {
+.post.twitter .quoted {
 	border: 1px solid #efefef;
 	padding: 10px 15px;
 }
-.twitter-title-1 {
+.twitter-title {
 	display: inline;
 }

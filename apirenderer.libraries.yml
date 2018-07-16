@@ -1,0 +1,8 @@
+apirenderer:
+  css:
+    theme:
+      css/apirenderer.css: {}
+  js:
+    js/apirenderer.js: {}
+  dependencies:
+    - core/jquery

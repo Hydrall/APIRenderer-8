@@ -62,7 +62,7 @@ class apirendererTwitterBlock extends BlockBase implements BlockPluginInterface 
                         '#extras' => $extras
                     ];
                     $content .= drupal_render($renderable);
-                    if ($num == $config['apirenderer_twitter_block_num_to_show']) {
+                    if ($num == ($config['apirenderer_twitter_block_num_to_show']-1)) {
                         break;
                     }
                 }
@@ -71,7 +71,7 @@ class apirendererTwitterBlock extends BlockBase implements BlockPluginInterface 
                     '#blocktype' => 'twitter',
                     '#content' => $content,
                     '#name' => \Drupal::config('apirenderer.settings')->get('apirenderer_twitter_user_timeline'),
-                    '#url' => "https://twitter.com/" . $data[0]['user']['screen_name']
+                    '#url' => "https://twitter.com/" . $data[0]['user']['screen_name'],
                 ];
             }
             else {
@@ -87,19 +87,21 @@ class apirendererTwitterBlock extends BlockBase implements BlockPluginInterface 
      * {@inheritdoc}
      */
     public function blockForm($form, FormStateInterface $form_state) {
-        $max_items = \Drupal::config('apirenderer.settings')->get('apirenderer_twitter_count');
+        $form = parent::blockForm($form, $form_state);
         $config = $this->getConfiguration();
-        //Add a select box of numbers from 1 to $max_items
+        $max_items = \Drupal::config('apirenderer.settings')->get('apirenderer_twitter_count');
         $form['apirenderer_twitter_block_num'] = array(
-            '#blocktype' => 'select',
+            '#type' => 'number',
             '#title' => t('Tweets To Show'),
             '#default_value' => isset($config['apirenderer_twitter_block_num_to_show']) ? $config['apirenderer_twitter_block_num_to_show'] : 1,
-            '#options' => array_combine(range(1, $max_items), range(1, $max_items)),
+            '#max' => $max_items ?: 20,
+            '#min' => 1,
         );
         //The block should always pull the latest data from the database, so no cache.
         return $form;
     }
     public function blockSubmit($form, FormStateInterface $form_state) {
+        parent::blockSubmit($form, $form_state);
         $this->configuration['apirenderer_twitter_block_num_to_show'] = $form_state->getValue('apirenderer_twitter_block_num');
     }
     /**

@@ -1,5 +1,0 @@
-name = Leidos Website API Renderer
-description = Pulls data from various APIs and sorts them into table or appropriate presentations.
-core = 7.x
-stylesheets[all][] = apirenderer.css
-configure = admin/config/content/apirenderer

@@ -43,6 +43,7 @@ class ApirendererForm extends ConfigFormBase {
   }
 
   public function buildForm(array $form, FormStateInterface $form_state) {
+    $form['#attached']['library'][] = 'apirenderer/js';
     $form['apirenderer_proxy'] = [
       '#type' => 'textfield',
       '#title' => $this->t('Proxy Address'),
